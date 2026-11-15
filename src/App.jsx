@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import TodayWork from './pages/TodayWork.jsx'
 import UpcomingWork from './pages/UpcomingWork.jsx'
 import Clients from './pages/Clients.jsx'
+import SectorWorkPage from './pages/SectorWorkPage.jsx'
 import Warranty from './pages/Warranty.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
 import NewWork from './pages/NewWork.jsx'
@@ -20,6 +21,8 @@ const NAV = [
   ['clients', '💼', 'Sales Clients'],
   ['servicing', '🛠️', 'Servicing Clients'],
   ['maintenance', '⚙️', 'Maintenance Clients'],
+  ['installation', '🔌', 'Installation'],
+  ['general', '📋', 'General Work'],
   ['warranty', '🛡', 'Warranty Management'],
   ['calendar', '🗓', 'Schedule / Calendar'],
   ['new', '➕', 'Add Work'],
@@ -46,14 +49,33 @@ function Shell() {
     setOpen(false)
   }
 
-  const openClientReport = (clientId, category = 'Sales') => {
+  const openClientReport = (clientIdOrCategory, category = 'Sales') => {
+    // If called with only category (e.g. from SectorWorkPage)
+    if (
+      typeof clientIdOrCategory === 'string' &&
+      ['Sales', 'Servicing', 'Maintenance', 'Installation', 'General'].includes(clientIdOrCategory)
+    ) {
+      const map = {
+        Sales: 'sales',
+        Servicing: 'servicing',
+        Maintenance: 'maintenance',
+        Installation: 'installation',
+        General: 'general',
+      }
+      setReportPreset({ clientId: '', reportType: map[clientIdOrCategory] || '' })
+      setPage('srep')
+      setOpen(false)
+      return
+    }
+
     const map = {
       Sales: 'sales',
       Servicing: 'servicing',
       Maintenance: 'maintenance',
+      Installation: 'installation',
       General: 'general',
     }
-    setReportPreset({ clientId, reportType: map[category] || 'sales' })
+    setReportPreset({ clientId: clientIdOrCategory, reportType: map[category] || 'sales' })
     setPage('srep')
     setOpen(false)
   }
@@ -65,6 +87,8 @@ function Shell() {
     clients: <Clients category="Sales" onPrintClient={openClientReport} />,
     servicing: <Clients category="Servicing" onPrintClient={openClientReport} />,
     maintenance: <Clients category="Maintenance" onPrintClient={openClientReport} />,
+    installation: <SectorWorkPage category="Installation" onPrintReport={openClientReport} />,
+    general: <SectorWorkPage category="General" onPrintReport={openClientReport} />,
     warranty: <Warranty />,
     calendar: <CalendarPage />,
     new: <NewWork />,

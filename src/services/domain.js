@@ -1,6 +1,6 @@
 import { uid, TODAY, addD, addM, diff } from './dates.js'
 
-export const CATS = ['Sales', 'Servicing', 'Maintenance', 'General']
+export const CATS = ['Sales', 'Servicing', 'Maintenance', 'Installation', 'General']
 export const CLIENT_TYPES = ['Sales', 'Servicing', 'Maintenance']
 export const PRODUCT_TYPES = ['UPS', 'Battery', 'AVR', 'STS', 'PCD', 'Other']
 export const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent']
@@ -11,6 +11,39 @@ export const clientContact = (c) =>
   c ? c.contactPerson || (c.company && c.name && c.name !== c.company ? c.name : '') : ''
 export const clientProduct = (c) =>
   c ? c.product || [c.productType, c.model].filter(Boolean).join(' ') || '—' : '—'
+
+// Extract client title and contact for a work record (supports both database clients and manual entries)
+export const workClientName = (w, clients = []) => {
+  if (!w) return '—'
+  if (w.clientName || w.clientCompany) {
+    if (w.clientCompany && w.clientName && w.clientCompany !== w.clientName) {
+      return `${w.clientCompany} (${w.clientName})`
+    }
+    return w.clientCompany || w.clientName
+  }
+  if (w.clientId) {
+    const c = clients.find((x) => x.id === w.clientId)
+    if (c) return clientTitle(c)
+  }
+  return '—'
+}
+
+export const workClientContact = (w, clients = []) => {
+  if (!w) return ''
+  const parts = []
+  if (w.clientPhone) parts.push(w.clientPhone)
+  if (w.clientAddress) parts.push(w.clientAddress)
+  if (parts.length > 0) return parts.join(' · ')
+  if (w.clientId) {
+    const c = clients.find((x) => x.id === w.clientId)
+    if (c) {
+      const contact = clientContact(c)
+      const phone = c.phone
+      return [contact, phone].filter(Boolean).join(' · ')
+    }
+  }
+  return ''
+}
 
 // Warranty: start date, expiry date, days left, active flag, total months
 export const warr = (c) => {

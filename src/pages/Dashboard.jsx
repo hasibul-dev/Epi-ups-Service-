@@ -13,6 +13,8 @@ export default function Dashboard({ go }) {
   const salesClients = s.clients.filter((c) => clientType(c) === 'Sales')
   const servicingClients = s.clients.filter((c) => clientType(c) === 'Servicing')
   const maintenanceClients = s.clients.filter((c) => clientType(c) === 'Maintenance')
+  const installationWorks = s.works.filter((w) => w.category === 'Installation')
+  const generalWorks = s.works.filter((w) => w.category === 'General')
   const expiring = salesClients.filter((c) => warr(c).active && warr(c).left <= 30).length
 
   const Stat = ({ n, label, color, page }) => (
@@ -29,18 +31,29 @@ export default function Dashboard({ go }) {
           <div>
             <h2 className="action-hub-title">⚡ EPI UPS Control Center</h2>
             <p className="action-hub-subtitle">
-              Manage sales clients, register multi-category clients, and schedule service or maintenance work
+              Manage sales, servicing, maintenance, installation, and general work orders with full manual &amp; scheduled tracking
             </p>
           </div>
-          <button
-            type="button"
-            className="btn btn-add-work"
-            onClick={() => addWork(T)}
-            title="Manually schedule a new work task"
-          >
-            <span>🗓️</span>
-            <span>+ Add Work</span>
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-add-work"
+              onClick={() => addWork(T, 'Installation')}
+              title="Create new Installation work order"
+            >
+              <span>🔌</span>
+              <span>+ Installation</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-add-work"
+              onClick={() => addWork(T)}
+              title="Manually schedule a new work task"
+            >
+              <span>🗓️</span>
+              <span>+ Add Work</span>
+            </button>
+          </div>
         </div>
 
         <div className="hero-actions-grid">
@@ -77,18 +90,26 @@ export default function Dashboard({ go }) {
 
         <div className="quick-section-links">
           <button type="button" className="quick-link-pill" onClick={() => go('servicing')}>
-            <span>🛠️ Servicing Clients</span>
+            <span>🛠️ Servicing</span>
             <span className="bd y">{servicingClients.length}</span>
           </button>
           <button type="button" className="quick-link-pill" onClick={() => go('maintenance')}>
-            <span>⚙️ Maintenance Clients</span>
+            <span>⚙️ Maintenance</span>
             <span className="bd g">{maintenanceClients.length}</span>
           </button>
-          <button type="button" className="quick-link-pill" onClick={() => go('history')}>
-            <span>🕘 Complete Work History</span>
+          <button type="button" className="quick-link-pill" onClick={() => go('installation')}>
+            <span>🔌 Installation</span>
+            <span className="bd b">{installationWorks.length}</span>
           </button>
-          <button type="button" className="quick-link-pill" onClick={() => go('calendar')}>
-            <span>🗓️ Full Schedule</span>
+          <button type="button" className="quick-link-pill" onClick={() => go('general')}>
+            <span>📋 General Work</span>
+            <span className="bd m">{generalWorks.length}</span>
+          </button>
+          <button type="button" className="quick-link-pill" onClick={() => go('history')}>
+            <span>🕘 Complete History</span>
+          </button>
+          <button type="button" className="quick-link-pill" onClick={() => go('srep')}>
+            <span>📄 Work Reports</span>
           </button>
         </div>
       </section>
@@ -99,6 +120,7 @@ export default function Dashboard({ go }) {
         <Stat n={today.filter((w) => w.status === 'done').length} label="Completed Today" color="var(--g)" page="today" />
         <Stat n={upcoming.length} label="Upcoming (Next 2d)" color="var(--a)" page="upcoming" />
         <Stat n={overdue.length} label="Overdue Tasks" color="var(--r)" page="today" />
+        <Stat n={installationWorks.length} label="Installations" color="var(--a)" page="installation" />
         <Stat n={salesClients.length} label="Sales Clients" page="clients" />
         <Stat n={expiring} label="Warranty ≤30d" color="var(--y)" page="warranty" />
       </div>

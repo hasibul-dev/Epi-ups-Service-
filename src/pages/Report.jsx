@@ -36,18 +36,25 @@ const REPORT_TYPES = [
     desc: 'Automatic 3-month & manual maintenance schedules',
   },
   {
+    id: 'installation',
+    title: 'Installation Report',
+    icon: '🔌',
+    category: 'Installation',
+    desc: 'UPS & equipment installations, manual client sites & commissioning records',
+  },
+  {
     id: 'general',
     title: 'General Work Report',
     icon: '📋',
     category: 'General',
-    desc: 'General inspections, internal tasks & miscellaneous works',
+    desc: 'Independent manual work orders, routine inspections & general tasks',
   },
   {
     id: 'schedule',
     title: 'Schedule Report',
     icon: '🗓️',
     category: '',
-    desc: 'Complete scheduled, pending, overdue & completed work timeline',
+    desc: 'Complete scheduled, pending, overdue & completed work timeline across all sectors',
   },
 ]
 
@@ -55,7 +62,9 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
   const { s, editWork } = useApp()
 
   const [selectedReports, setSelectedReports] = useState(() =>
-    preselectReport ? [preselectReport] : ['sales', 'servicing', 'maintenance', 'general', 'schedule']
+    preselectReport
+      ? [preselectReport]
+      : ['sales', 'servicing', 'maintenance', 'installation', 'general', 'schedule']
   )
   const [from, setFrom] = useState(addD(TODAY(), -90))
   const [to, setTo] = useState(addD(TODAY(), 90))
@@ -101,24 +110,33 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
 
-  const activeClientIds =
-    selectedClientIds.length > 0
-      ? selectedClientIds
-      : q.trim()
-      ? matchingClients.map((c) => c.id)
-      : null
+  const getClientInfo = (w) => {
+    if (w.clientName || w.clientCompany) {
+      const title =
+        w.clientCompany && w.clientName && w.clientCompany !== w.clientName
+          ? `${w.clientCompany} (${w.clientName})`
+          : w.clientCompany || w.clientName
+      const sub = [w.clientPhone, w.clientAddress].filter(Boolean).join(' · ')
+      return { title, sub }
+    }
+    if (w.clientId) {
+      const c = s.clients.find((x) => x.id === w.clientId)
+      if (c) return { title: clientTitle(c), sub: clientContact(c) || c.phone || '' }
+    }
+    return { title: 'Internal / Unspecified', sub: '' }
+  }
 
   // Compute filtered work rows for a given report type
   const getReportData = (reportId) => {
-    const def = REPORT_TYPES.find((r) => r.id === reportId) || REPORT_TYPES[4]
+    const def = REPORT_TYPES.find((r) => r.id === reportId) || REPORT_TYPES[5]
     const rows = s.works
       .filter((w) => {
         if (from && w.date < from) return false
         if (to && w.date > to) return false
         if (workType && w.category !== workType) return false
         if (statusFilter && status(w) !== statusFilter) return false
-        if (activeClientIds && !activeClientIds.includes(w.clientId)) return false
 
+        // Category filter based on report definition:
         if (def.category) {
           if (reportId === 'sales') {
             const c = s.clients.find((x) => x.id === w.clientId)
@@ -127,6 +145,34 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
             return false
           }
         }
+
+        // Specific client selection:
+        if (selectedClientIds.length > 0) {
+          if (!selectedClientIds.includes(w.clientId)) return false
+        }
+
+        // Search filter (searches work details, technician, database clients AND manual client entries)
+        if (q.trim()) {
+          const c = s.clients.find((x) => x.id === w.clientId)
+          const hay = [
+            w.title,
+            w.desc,
+            w.notes,
+            w.engineer,
+            w.category,
+            w.clientName,
+            w.clientCompany,
+            w.clientPhone,
+            w.clientAddress,
+            c ? clientTitle(c) : '',
+            c ? clientContact(c) : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          if (!hay.includes(q.trim().toLowerCase())) return false
+        }
+
         return true
       })
       .sort(byTime)
@@ -158,19 +204,11 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
     }, 300)
   }
 
-  const printSelected = () =>
-    runPrint(`EPI-UPS-Selected-Reports-${TODAY()}`)
-
-  const exportSelectedPdf = () =>
-    runPrint(`EPI-UPS-Reports-${TODAY()}`)
-
+  const printSelected = () => runPrint(`EPI-UPS-Selected-Reports-${TODAY()}`)
+  const exportSelectedPdf = () => runPrint(`EPI-UPS-Reports-${TODAY()}`)
   const printIndividual = (reportId, title) =>
     runPrint(`EPI-UPS-${title.replace(/\s+/g, '-')}-${TODAY()}`, reportId)
 
-  const cname = (id) => {
-    const c = s.clients.find((x) => x.id === id)
-    return c ? clientTitle(c) : 'Internal / General'
-  }
   const statusLabel = (w) =>
     ({ done: 'Completed', overdue: 'Overdue', pending: 'Pending' }[status(w)])
 
@@ -330,9 +368,9 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
 
             <div className="row">
               <label className="f" style={{ flex: 1, minWidth: 200 }}>
-                <span>Search Client</span>
+                <span>Search Client / Work</span>
                 <input
-                  placeholder="Search client or company name…"
+                  placeholder="Search client name, company, work title, phone, technician…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                 />
@@ -350,7 +388,9 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
                 <select value={workType} onChange={(e) => setWorkType(e.target.value)}>
                   <option value="">All Work Types</option>
                   {CATS.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c === 'Installation' ? '🔌 Installation' : c === 'General' ? '📋 General' : c}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -369,7 +409,7 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
             <div className="report-client-picker">
               <div className="report-picker-head">
                 <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>
-                  Client Filter ({selectedClientIds.length ? `${selectedClientIds.length} selected` : 'All matching clients'}):
+                  Client Filter ({selectedClientIds.length ? `${selectedClientIds.length} selected` : 'All database & manual clients'}):
                 </span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
@@ -377,7 +417,7 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
                     className="btn s sm"
                     onClick={() => setSelectedClientIds(matchingClients.map((c) => c.id))}
                   >
-                    Select All Clients ({matchingClients.length})
+                    Select All Database Clients ({matchingClients.length})
                   </button>
                   {selectedClientIds.length > 0 && (
                     <button
@@ -407,7 +447,7 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
                   )
                 })}
                 {!matchingClients.length && (
-                  <span className="muted" style={{ fontSize: 12 }}>No clients match search.</span>
+                  <span className="muted" style={{ fontSize: 12 }}>No database clients match search.</span>
                 )}
               </div>
             </div>
@@ -554,43 +594,49 @@ export default function Report({ preselectClientId = '', preselectReport = '' })
                       <th>#</th>
                       <th>Date</th>
                       <th>Time</th>
-                      <th>Client</th>
+                      <th>Client / Site</th>
                       <th>Category</th>
                       <th>Priority</th>
                       <th>Work / Description / Notes</th>
-                      <th>Engineer</th>
+                      <th>Technician</th>
                       <th>Status</th>
                       <th className="no-print">Edit</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((w, i) => (
-                      <tr key={w.id}>
-                        <td>{i + 1}</td>
-                        <td>{fmt(w.date)}</td>
-                        <td>{w.time}</td>
-                        <td>{cname(w.clientId)}</td>
-                        <td>{w.category}</td>
-                        <td>{w.priority || 'Normal'}</td>
-                        <td>
-                          <b>{w.title}</b>
-                          {w.desc && w.desc !== w.title ? <div>{w.desc}</div> : null}
-                          {w.notes ? <div>Note: {w.notes}</div> : null}
-                        </td>
-                        <td>{w.engineer || '—'}</td>
-                        <td>{statusLabel(w)}</td>
-                        <td className="no-print">
-                          <button
-                            type="button"
-                            className="btn s sm"
-                            style={{ color: '#111', borderColor: '#bbb', background: '#eef1f7' }}
-                            onClick={() => editWork(w)}
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {rows.map((w, i) => {
+                      const ci = getClientInfo(w)
+                      return (
+                        <tr key={w.id}>
+                          <td>{i + 1}</td>
+                          <td>{fmt(w.date)}</td>
+                          <td>{w.time}</td>
+                          <td>
+                            <b>{ci.title}</b>
+                            {ci.sub && <div style={{ fontSize: 11, color: '#444' }}>{ci.sub}</div>}
+                          </td>
+                          <td>{w.category}</td>
+                          <td>{w.priority || 'Normal'}</td>
+                          <td>
+                            <b>{w.title}</b>
+                            {w.desc && w.desc !== w.title ? <div>{w.desc}</div> : null}
+                            {w.notes ? <div>Note: {w.notes}</div> : null}
+                          </td>
+                          <td>{w.engineer || '—'}</td>
+                          <td>{statusLabel(w)}</td>
+                          <td className="no-print">
+                            <button
+                              type="button"
+                              className="btn s sm"
+                              style={{ color: '#111', borderColor: '#bbb', background: '#eef1f7' }}
+                              onClick={() => editWork(w)}
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                     {!rows.length && (
                       <tr>
                         <td colSpan="10" style={{ textAlign: 'center' }}>

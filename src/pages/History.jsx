@@ -36,9 +36,14 @@ export default function History({ onPrintClient }) {
         w.notes,
         w.engineer,
         w.category,
+        w.clientName,
+        w.clientCompany,
+        w.clientPhone,
+        w.clientAddress,
         c ? clientTitle(c) : '',
         c ? clientContact(c) : '',
       ]
+        .filter(Boolean)
         .join(' ')
         .toLowerCase()
       if (!hay.includes(q.trim().toLowerCase())) return false
